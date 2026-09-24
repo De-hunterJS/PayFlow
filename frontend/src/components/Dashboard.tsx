@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
 import {
   buildPayPerUseTx,
+  buildPayPerUseToTx,
   getDailyLimit,
   getDailySpent,
   getDayStart,
@@ -124,7 +125,7 @@ export default function Dashboard({
   );
 
   const handlePayPerUse = useCallback(
-    async (stroops: bigint) => {
+    async (stroops: bigint, recipient?: string) => {
       if (isOffline) {
         announce("You're offline. Wallet actions are unavailable.");
         return;
@@ -132,7 +133,9 @@ export default function Dashboard({
       announce("Transaction submitted");
       try {
         const hash = await ppuTx.submit(async () => {
-          const xdr = await buildPayPerUseTx(userKey, stroops);
+          const xdr = recipient
+            ? await buildPayPerUseToTx(userKey, stroops, recipient)
+            : await buildPayPerUseTx(userKey, stroops);
           return onSign(xdr);
         });
         addToast("Paid!", "success", hash);
