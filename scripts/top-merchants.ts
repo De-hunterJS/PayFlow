@@ -468,7 +468,7 @@ function main() {
 
   const db = new DatabaseSync(dbPath, { open: true });
   const rows = db
-    .prepare("SELECT data FROM events WHERE event_name = 'charged'")
+    .prepare("SELECT raw_data FROM events WHERE event_name = 'charged'")
     .all() as unknown as EventRow[];
   db.close();
 
