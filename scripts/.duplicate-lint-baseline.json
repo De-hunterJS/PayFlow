@@ -7,13 +7,11 @@
     "health-check.ts",
     "migrate-contract.ts",
     "onboard-merchant.ts",
-    "pre-upgrade-check.ts",
     "rotate-fee-collector.ts",
     "subscriber-health-dashboard.ts",
     "subscription-snapshot.ts",
     "test-churn-analysis.ts",
     "test-dlq.ts",
-    "testnet-setup.ts",
-    "top-merchants.ts"
+    "testnet-setup.ts"
   ]
 }
