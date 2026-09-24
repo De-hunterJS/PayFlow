@@ -360,7 +360,6 @@ async function main() {
   const server = new Server(rpcUrl);
 
   // We need any funded account as TX source for the simulation.
-  // Use a well-known testnet faucet account as a zero-auth read source.
   const READ_ONLY_ACCOUNT =
     process.env.SOROBAN_SOURCE_ACCOUNT ??
     "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN";
@@ -402,6 +401,7 @@ async function main() {
   }
 }
 
+if (require.main === module) {
 // Only run when executed directly (not when imported in tests).
 // ESM entrypoint guard (scripts/package.json sets "type": "module", so the
 // CJS `require.main === module` check would throw `require is not defined`
@@ -512,4 +512,3 @@ function main() {
   } else process.stdout.write(json + "\n");
 }
 
-main();
