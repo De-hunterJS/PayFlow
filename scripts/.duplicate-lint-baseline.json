@@ -3,7 +3,6 @@
   "files": [
     "config.ts",
     "grace-period-monitor.ts",
-    "health-check.ts",
     "migrate-contract.ts",
     "onboard-merchant.ts",
     "rotate-fee-collector.ts",
