@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, forwardRef } from "react";
+import { StrKey } from "@stellar/stellar-sdk";
 import Spinner from "./Spinner";
 import { STROOPS_PER_XLM, MIN_STROOPS, CONTRACT_LIMITS } from "../constants";
 import { useDebounce } from "../hooks/useDebounce";
@@ -8,7 +9,7 @@ import { dailyLimitProgress } from "../utils/format";
 import { validateStroopAmount } from "../hooks/useFormValidation";
 
 interface PayPerUseFormProps {
-  onPay: (amount: bigint) => Promise<void>;
+  onPay: (amount: bigint, recipient?: string) => Promise<void>;
   loading: boolean;
   isPaused?: boolean;
   disabled?: boolean;
@@ -65,6 +66,22 @@ function validate(
   return { stroops, error: null };
 }
 
+/**
+ * Validates an optional `pay_per_use_to` recipient address. An empty value is
+ * valid (the field is optional); a non-empty value must be a Stellar account
+ * (Ed25519) or contract address — the same shapes the contract accepts via
+ * `Address`. Federated names are intentionally rejected since they cannot be
+ * encoded into an `Address` ScVal without a resolver round-trip.
+ */
+function validateRecipient(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (StrKey.isValidEd25519PublicKey(trimmed) || StrKey.isValidContract(trimmed)) {
+    return null;
+  }
+  return "Invalid recipient address.";
+}
+
 const PayPerUseForm = forwardRef<HTMLInputElement, PayPerUseFormProps>(
   (
     {
@@ -84,6 +101,8 @@ const PayPerUseForm = forwardRef<HTMLInputElement, PayPerUseFormProps>(
     const { unit } = useAmountDisplay();
     const [amount, setAmount] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [recipient, setRecipient] = useState("");
+    const [recipientError, setRecipientError] = useState<string | null>(null);
     const [lastValue, setLastValue] = useState(amount);
     const debouncedValue = useDebounce(amount, 300);
     const [convertedStroops, setConvertedStroops] = useState<bigint | null>(null);
@@ -135,7 +154,7 @@ const PayPerUseForm = forwardRef<HTMLInputElement, PayPerUseFormProps>(
       }
     };
 
-    const isFormValid = convertedStroops !== null && !error;
+    const isFormValid = convertedStroops !== null && !error && !recipientError;
 
     const validationResult = useMemo(() => {
       return validateStroopAmount(amount, CONTRACT_LIMITS.MAX_PAY_PER_USE_AMOUNT);
@@ -164,8 +183,22 @@ const PayPerUseForm = forwardRef<HTMLInputElement, PayPerUseFormProps>(
 
     const payDisabled = loading || isPaused || disabled || exceedsRemaining || limitBlocked;
 
+    function handleRecipientChange(e: React.ChangeEvent<HTMLInputElement>) {
+      const value = e.target.value;
+      setRecipient(value);
+      setRecipientError(validateRecipient(value));
+    }
+
     async function handleSubmit() {
       if (!validationResult.valid || payDisabled || exceedsRemaining) return;
+      const trimmedRecipient = recipient.trim();
+      if (trimmedRecipient) {
+        const recipientErr = validateRecipient(trimmedRecipient);
+        if (recipientErr) {
+          setRecipientError(recipientErr);
+          return;
+        }
+      }
       const stroops = BigInt(Math.round(parseFloat(amount) * 10_000_000));
       // Extra guard: re-check before wallet prompt
       if (remaining !== null && stroops > remaining) {
@@ -174,7 +207,11 @@ const PayPerUseForm = forwardRef<HTMLInputElement, PayPerUseFormProps>(
         );
         return;
       }
-      await onPay(stroops);
+      if (trimmedRecipient) {
+        await onPay(stroops, trimmedRecipient);
+      } else {
+        await onPay(stroops);
+      }
       setAmount("");
       setError(null);
       setConvertedStroops(null);
@@ -288,6 +325,23 @@ const PayPerUseForm = forwardRef<HTMLInputElement, PayPerUseFormProps>(
           >
             {loading ? <Spinner size="sm" /> : "Pay now"}
           </button>
+        </div>
+        <div className="ppu-card__recipient" style={{ marginTop: 8 }}>
+          <input
+            type="text"
+            placeholder="Recipient address (optional)"
+            aria-label="Recipient address (optional)"
+            value={recipient}
+            onChange={handleRecipientChange}
+            onBlur={() => setRecipientError(validateRecipient(recipient))}
+            disabled={payDisabled}
+            style={{ width: "100%" }}
+          />
+          {recipientError && (
+            <span className="text-error" data-testid="ppu-recipient-error" role="alert">
+              {recipientError}
+            </span>
+          )}
         </div>
         {disabled && disabledReason && (
           <p className="text-error" data-testid="ppu-blocked-reason" role="status">
